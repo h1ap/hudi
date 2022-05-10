@@ -113,6 +113,7 @@ public class HoodieFlinkCopyOnWriteTable<T extends HoodieRecordPayload>
       HoodieWriteHandle<?, ?, ?, ?> writeHandle,
       String instantTime,
       List<HoodieRecord<T>> records) {
+    // 此处为writeHandle
     return new FlinkUpsertCommitActionExecutor<>(context, writeHandle, config, this, instantTime, records).execute();
   }
 

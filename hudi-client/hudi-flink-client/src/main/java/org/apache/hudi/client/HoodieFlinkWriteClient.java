@@ -136,13 +136,17 @@ public class HoodieFlinkWriteClient<T extends HoodieRecordPayload> extends
 
   @Override
   public List<WriteStatus> upsert(List<HoodieRecord<T>> records, String instantTime) {
+    // 根据table type创建hoodie表
     HoodieTable<T, List<HoodieRecord<T>>, List<HoodieKey>, List<WriteStatus>> table =
         initTable(WriteOperationType.UPSERT, Option.ofNullable(instantTime));
     table.validateUpsertSchema();
     preWrite(instantTime, WriteOperationType.UPSERT, table.getMetaClient());
+    // 获取写入handle
     final HoodieWriteHandle<?, ?, ?, ?> writeHandle = getOrCreateWriteHandle(records.get(0), getConfig(),
         instantTime, table, records.listIterator());
+    // 执行upsert操作，并返回写入的状态
     HoodieWriteMetadata<List<WriteStatus>> result = ((HoodieFlinkTable<T>) table).upsert(context, writeHandle, instantTime, records);
+    // 更新metrics
     if (result.getIndexLookupDuration().isPresent()) {
       metrics.updateIndexMetrics(LOOKUP_STR, result.getIndexLookupDuration().get().toMillis());
     }
@@ -451,14 +455,22 @@ public class HoodieFlinkWriteClient<T extends HoodieRecordPayload> extends
       String instantTime,
       HoodieTable<T, List<HoodieRecord<T>>, List<HoodieKey>, List<WriteStatus>> table,
       Iterator<HoodieRecord<T>> recordItr) {
+    // 获取当前的文件路径
     final HoodieRecordLocation loc = record.getCurrentLocation();
+    // 获取file_id(FileGroupId/BucketId)
     final String fileID = loc.getFileId();
+    // 获取分区路径
     final String partitionPath = record.getPartitionPath();
+    // 允许重复insert
     final boolean insertClustering = config.allowDuplicateInserts();
-
+    // 从(FileId -> Handles)的映射中获取handle做增量append操作
+    // 能获取到handle
     if (bucketToHandles.containsKey(fileID)) {
       MiniBatchHandle lastHandle = (MiniBatchHandle) bucketToHandles.get(fileID);
+      // 是否应该用同名的新文件替换旧的写入文件，使用内容合并增量的新数据批
+      // log不用replace直接append
       if (lastHandle.shouldReplace()) {
+        // 允许重复insert执行FlinkConcatAndReplaceHandle，否则FlinkMergeAndReplaceHandle
         HoodieWriteHandle<?, ?, ?, ?> writeHandle = insertClustering
             ? new FlinkConcatAndReplaceHandle<>(config, instantTime, table, recordItr, partitionPath, fileID,
                 table.getTaskContextSupplier(), lastHandle.getWritePath())
@@ -468,16 +480,16 @@ public class HoodieFlinkWriteClient<T extends HoodieRecordPayload> extends
         return writeHandle;
       }
     }
-
+    // 没有可用的handle，则创建新的
     final boolean isDelta = table.getMetaClient().getTableType().equals(HoodieTableType.MERGE_ON_READ);
     final HoodieWriteHandle<?, ?, ?, ?> writeHandle;
-    if (isDelta) {
+    if (isDelta) { // mor直接追加log文件
       writeHandle = new FlinkAppendHandle<>(config, instantTime, table, partitionPath, fileID, recordItr,
           table.getTaskContextSupplier());
-    } else if (loc.getInstantTime().equals("I")) {
+    } else if (loc.getInstantTime().equals("I")) { // insert创建新的handle
       writeHandle = new FlinkCreateHandle<>(config, instantTime, table, partitionPath,
           fileID, table.getTaskContextSupplier());
-    } else {
+    } else { // update
       writeHandle = insertClustering
           ? new FlinkConcatHandle<>(config, instantTime, table, recordItr, partitionPath,
               fileID, table.getTaskContextSupplier())

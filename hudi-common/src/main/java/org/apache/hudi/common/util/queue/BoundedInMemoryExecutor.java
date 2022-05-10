@@ -44,6 +44,8 @@ import java.util.stream.Collectors;
  * Executor which orchestrates concurrent producers and consumers communicating through a bounded in-memory queue. This
  * class takes as input the size limit, queue producer(s), consumer and transformer and exposes API to orchestrate
  * concurrent execution of these actors communicating through a central bounded queue
+ *
+ * 执行器，协调通过有界内存队列进行通信的并发生产者和消费者。此类将大小限制、队列生产者、消费者和转换器作为输入，并公开API来协调这些参与者通过中央有界队列通信的并发执行
  */
 public class BoundedInMemoryExecutor<I, O, E> {
 

@@ -65,24 +65,31 @@ public class FlinkMergeHelper<T extends HoodieRecordPayload> extends BaseMergeHe
     final GenericDatumWriter<GenericRecord> gWriter;
     final GenericDatumReader<GenericRecord> gReader;
     Schema readSchema;
-
+    // during upsert, delete, background compaction and clustering, older schema are rewritten into newer schema
     final boolean externalSchemaTransformation = table.getConfig().shouldUseExternalSchemaTransformation();
+
+    // 获取fileslice中的basefile(parquet file)
     HoodieBaseFile baseFile = mergeHandle.baseFileForMerge();
     if (externalSchemaTransformation || baseFile.getBootstrapBaseFile().isPresent()) {
+      // 获取old file schema
       readSchema = HoodieFileReaderFactory.getFileReader(table.getHadoopConf(), mergeHandle.getOldFilePath()).getSchema();
       gWriter = new GenericDatumWriter<>(readSchema);
       gReader = new GenericDatumReader<>(readSchema, mergeHandle.getWriterSchemaWithMetaFields());
     } else {
       gReader = null;
       gWriter = null;
+      // 从avro file获取schema
       readSchema = mergeHandle.getWriterSchemaWithMetaFields();
     }
 
     BoundedInMemoryExecutor<GenericRecord, GenericRecord, Void> wrapper = null;
     Configuration cfgForHoodieFile = new Configuration(table.getHadoopConf());
+    // 获取parquet/orc/hfile的reader
     HoodieFileReader<GenericRecord> reader = HoodieFileReaderFactory.<GenericRecord>getFileReader(cfgForHoodieFile, mergeHandle.getOldFilePath());
     try {
+      // 数据迭代器
       final Iterator<GenericRecord> readerIterator;
+      // 存在base file
       if (baseFile.getBootstrapBaseFile().isPresent()) {
         readerIterator = getMergingIterator(table, mergeHandle, baseFile, reader, readSchema, externalSchemaTransformation);
       } else {
@@ -91,6 +98,7 @@ public class FlinkMergeHelper<T extends HoodieRecordPayload> extends BaseMergeHe
 
       ThreadLocal<BinaryEncoder> encoderCache = new ThreadLocal<>();
       ThreadLocal<BinaryDecoder> decoderCache = new ThreadLocal<>();
+      // 执行器，协调通过有界内存队列进行通信的并发生产者和消费者。此类将大小限制、队列生产者、消费者和转换器作为输入，并公开API来协调这些参与者通过中央有界队列通信的并发执行
       wrapper = new BoundedInMemoryExecutor<>(table.getConfig().getWriteBufferLimitBytes(), new IteratorBasedQueueProducer<>(readerIterator),
           Option.of(new UpdateHandler(mergeHandle)), record -> {
         if (!externalSchemaTransformation) {

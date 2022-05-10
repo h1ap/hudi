@@ -69,6 +69,7 @@ public class HoodieFlinkMergeOnReadTable<T extends HoodieRecordPayload>
     ValidationUtils.checkArgument(writeHandle instanceof FlinkAppendHandle,
         "MOR write handle should always be a FlinkAppendHandle");
     FlinkAppendHandle<?, ?, ?, ?> appendHandle = (FlinkAppendHandle<?, ?, ?, ?>) writeHandle;
+    // 此处为appendHandle
     return new FlinkUpsertDeltaCommitActionExecutor<>(context, appendHandle, config, this, instantTime, hoodieRecords).execute();
   }
 

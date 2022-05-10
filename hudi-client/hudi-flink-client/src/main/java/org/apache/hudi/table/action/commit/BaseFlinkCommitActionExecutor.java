@@ -102,6 +102,7 @@ public abstract class BaseFlinkCommitActionExecutor<T extends HoodieRecordPayloa
     final HoodieRecord<?> record = inputRecords.get(0);
     final String partitionPath = record.getPartitionPath();
     final String fileId = record.getCurrentLocation().getFileId();
+    // 数据打标，针对不同的bucketType，执行不同的写入策略
     final BucketType bucketType = record.getCurrentLocation().getInstantTime().equals("I")
         ? BucketType.INSERT
         : BucketType.UPDATE;
@@ -177,6 +178,7 @@ public abstract class BaseFlinkCommitActionExecutor<T extends HoodieRecordPayloa
       BucketType bucketType,
       Iterator recordItr) {
     try {
+      // 执行insert
       if (this.writeHandle instanceof HoodieCreateHandle) {
         // During one checkpoint interval, an insert record could also be updated,
         // for example, for an operation sequence of a record:
@@ -187,6 +189,7 @@ public abstract class BaseFlinkCommitActionExecutor<T extends HoodieRecordPayloa
         // and append instead of UPDATE.
         return handleInsert(fileIdHint, recordItr);
       } else if (this.writeHandle instanceof HoodieMergeHandle) {
+        // 执行update
         return handleUpdate(partitionPath, fileIdHint, recordItr);
       } else {
         switch (bucketType) {

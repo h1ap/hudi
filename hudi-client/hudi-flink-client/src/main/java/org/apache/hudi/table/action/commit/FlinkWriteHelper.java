@@ -67,6 +67,7 @@ public class FlinkWriteHelper<T extends HoodieRecordPayload, R> extends BaseWrit
                                                       HoodieTable<T, List<HoodieRecord<T>>, List<HoodieKey>, List<WriteStatus>> table, boolean shouldCombine, int shuffleParallelism,
                                                       BaseCommitActionExecutor<T, List<HoodieRecord<T>>, List<HoodieKey>, List<WriteStatus>, R> executor, WriteOperationType operationType) {
     try {
+      // 此处hudi默认是需要去lookup index的，但由于flink state的原因，所以indexLookupDuration基本为0ms
       Instant lookupBegin = Instant.now();
       Duration indexLookupDuration = Duration.between(lookupBegin, Instant.now());
 
