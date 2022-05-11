@@ -42,6 +42,7 @@ public class IteratorBasedQueueProducer<I> implements BoundedInMemoryQueueProduc
   @Override
   public void produce(BoundedInMemoryQueue<I, ?> queue) throws Exception {
     LOG.info("starting to buffer records");
+    // 可以看到只要迭代器还有记录（可能为插入时的新记录或者更新时的旧记录），就会往队列中不断写入
     while (inputIterator.hasNext()) {
       queue.insertRecord(inputIterator.next());
     }

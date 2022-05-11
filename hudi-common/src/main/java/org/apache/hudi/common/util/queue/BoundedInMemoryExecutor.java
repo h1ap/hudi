@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
  * Executor which orchestrates concurrent producers and consumers communicating through a bounded in-memory queue. This
  * class takes as input the size limit, queue producer(s), consumer and transformer and exposes API to orchestrate
  * concurrent execution of these actors communicating through a central bounded queue
- *
+ * 生产者消费者模型
  * 执行器，协调通过有界内存队列进行通信的并发生产者和消费者。此类将大小限制、队列生产者、消费者和转换器作为输入，并公开API来协调这些参与者通过中央有界队列通信的并发执行
  */
 public class BoundedInMemoryExecutor<I, O, E> {
@@ -97,13 +97,17 @@ public class BoundedInMemoryExecutor<I, O, E> {
    */
   public ExecutorCompletionService<Boolean> startProducers() {
     // Latch to control when and which producer thread will close the queue
+    // 协调生产者线程与消费者线程的退出动作
     final CountDownLatch latch = new CountDownLatch(producers.size());
+    // 如果我们要获取到并行处理任务的结果快慢来进行一些处理，我们就可以使用到ExecutorCompletionService来进行实现
+    // ExecutorCompletionService将多线程执行的结果按照执行结束的顺序放到堵塞队列中
     final ExecutorCompletionService<Boolean> completionService =
         new ExecutorCompletionService<Boolean>(producerExecutorService);
     producers.stream().map(producer -> {
       return completionService.submit(() -> {
         try {
           preExecuteRunnable.run();
+          // 生产数据
           producer.produce(queue);
         } catch (Throwable e) {
           LOG.error("error producing records", e);
@@ -131,8 +135,10 @@ public class BoundedInMemoryExecutor<I, O, E> {
     return consumer.map(consumer -> {
       return consumerExecutorService.submit(() -> {
         LOG.info("starting consumer thread");
+        // 配置上下文
         preExecuteRunnable.run();
         try {
+          // 开始消费
           E result = consumer.consume(queue);
           LOG.info("Queue Consumption is done; notifying producer threads");
           return result;

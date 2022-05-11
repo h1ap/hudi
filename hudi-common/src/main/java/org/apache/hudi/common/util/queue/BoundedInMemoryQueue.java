@@ -147,11 +147,13 @@ public class BoundedInMemoryQueue<I, O> implements Iterable<O> {
    * @param payload Payload to size
    */
   private void adjustBufferSizeIfNeeded(final O payload) throws InterruptedException {
+    // 首先看是否已经达到采样频率
     if (this.samplingRecordCounter.incrementAndGet() % RECORD_SAMPLING_RATE != 0) {
       return;
     }
 
     final long recordSizeInBytes = payloadSizeEstimator.sizeEstimate(payload);
+    // 然后计算新的记录平均大小和限流速率
     final long newAvgRecordSizeInBytes =
         Math.max(1, (avgRecordSizeInBytes * numSamples + recordSizeInBytes) / (numSamples + 1));
     final int newRateLimit =
@@ -159,9 +161,11 @@ public class BoundedInMemoryQueue<I, O> implements Iterable<O> {
 
     // If there is any change in number of records to cache then we will either release (if it increased) or acquire
     // (if it decreased) to adjust rate limiting to newly computed value.
+    // 该操作可根据采样的记录大小动态调节速率，不至于在记录负载太大和记录负载太小时，放入同等个数，从而起到动态调节作用
+    // 如果新的限流速率大于当前速率，则可释放一些许可（供阻塞的生产者获取后继续生产）
     if (newRateLimit > currentRateLimit) {
       rateLimiter.release(newRateLimit - currentRateLimit);
-    } else if (newRateLimit < currentRateLimit) {
+    } else if (newRateLimit < currentRateLimit) { // 否则需要获取（回收）一些许可（许可变少后生产速率自然就降低了）
       rateLimiter.acquire(currentRateLimit - newRateLimit);
     }
     currentRateLimit = newRateLimit;
@@ -182,7 +186,7 @@ public class BoundedInMemoryQueue<I, O> implements Iterable<O> {
 
     // We need to stop queueing if queue-reader has failed and exited.
     throwExceptionIfFailed();
-
+    // 首先获取一个许可(Semaphore)，未成功获取会被阻塞直至成功获取
     rateLimiter.acquire();
     // We are retrieving insert value in the record queueing thread to offload computation
     // around schema validation
@@ -207,12 +211,13 @@ public class BoundedInMemoryQueue<I, O> implements Iterable<O> {
     if (this.isReadDone.get()) {
       return Option.empty();
     }
-
+    // 可以看到首先会释放一个许可，然后判断是否还可以读取记录（还在生产或者停止生产但队列不为空都可读取）
     rateLimiter.release();
     Option<O> newRecord = Option.empty();
     while (expectMoreRecords()) {
       try {
         throwExceptionIfFailed();
+        // 然后从内部队列获取记录或返回
         newRecord = queue.poll(RECORD_POLL_INTERVAL_SEC, TimeUnit.SECONDS);
         if (newRecord != null) {
           break;
