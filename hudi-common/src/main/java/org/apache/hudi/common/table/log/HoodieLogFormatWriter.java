@@ -141,6 +141,7 @@ public class HoodieLogFormatWriter implements HoodieLogFormat.Writer {
     HoodieLogFormat.LogFormatVersion currentLogFormatVersion =
         new HoodieLogFormatVersion(HoodieLogFormat.CURRENT_VERSION);
 
+    // 获取FSDataOutputStream，判断能否append
     FSDataOutputStream originalOutputStream = getOutputStream();
     long startPos = originalOutputStream.getPos();
     long sizeWritten = 0;
@@ -150,6 +151,7 @@ public class HoodieLogFormatWriter implements HoodieLogFormat.Writer {
       long startSize = outputStream.size();
 
       // 1. Write the magic header for the start of the block
+      // 写入MAGIC(hudi)
       outputStream.write(HoodieLogFormat.MAGIC);
 
       // bytes for header
@@ -160,26 +162,34 @@ public class HoodieLogFormatWriter implements HoodieLogFormat.Writer {
       byte[] footerBytes = HoodieLogBlock.getLogMetadataBytes(block.getLogBlockFooter());
 
       // 2. Write the total size of the block (excluding Magic)
+      // 写入Block块的大小
       outputStream.writeLong(getLogBlockLength(content.length, headerBytes.length, footerBytes.length));
 
       // 3. Write the version of this log block
+      // 写入版本号
       outputStream.writeInt(currentLogFormatVersion.getVersion());
       // 4. Write the block type
+      // 写入 Block的类型
       outputStream.writeInt(block.getBlockType().ordinal());
 
       // 5. Write the headers for the log block
+      // 写入头部
       outputStream.write(headerBytes);
       // 6. Write the size of the content block
+      // 写入数据内容大小
       outputStream.writeLong(content.length);
       // 7. Write the contents of the data block
+      // 写入数据内容
       outputStream.write(content);
       // 8. Write the footers for the log block
+      // 写入尾部
       outputStream.write(footerBytes);
       // 9. Write the total size of the log block (including magic) which is everything written
       // until now (for reverse pointer)
       // Update: this information is now used in determining if a block is corrupt by comparing to the
       //   block size in header. This change assumes that the block size will be the last data written
       //   to a block. Read will break if any data is written past this point for a block.
+      // 写入本次写数据的总大小
       outputStream.writeLong(outputStream.size() - startSize);
 
       // Fetch the size again, so it accounts also (9).
@@ -216,6 +226,7 @@ public class HoodieLogFormatWriter implements HoodieLogFormat.Writer {
 
   private void rolloverIfNeeded() throws IOException {
     // Roll over if the size is past the threshold
+    // 当前大小大于阈值（512M）
     if (getCurrentSize() > sizeThreshold) {
       LOG.info("CurrentSize " + getCurrentSize() + " has reached threshold " + sizeThreshold
           + ". Rolling over to the next version");

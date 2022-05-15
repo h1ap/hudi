@@ -145,6 +145,7 @@ public class HoodieAppendHandle<T extends HoodieRecordPayload, I, K, O> extends 
       String baseInstantTime;
       String baseFile = "";
       List<String> logFiles = new ArrayList<>();
+      // 存在fileslice
       if (fileSlice.isPresent()) {
         baseInstantTime = fileSlice.get().getBaseInstantTime();
         baseFile = fileSlice.get().getBaseFile().map(BaseFile::getFileName).orElse("");
@@ -181,7 +182,7 @@ public class HoodieAppendHandle<T extends HoodieRecordPayload, I, K, O> extends 
         // writers.
         // https://issues.apache.org/jira/browse/HUDI-1517
         createMarkerFile(partitionPath, FSUtils.makeDataFileName(baseInstantTime, writeToken, fileId, hoodieTable.getBaseFileExtension()));
-
+        // 初始化HoodieLogFormatWriter
         this.writer = createLogWriter(fileSlice, baseInstantTime);
       } catch (Exception e) {
         LOG.error("Error in update task at commit " + instantTime, e);
@@ -375,8 +376,11 @@ public class HoodieAppendHandle<T extends HoodieRecordPayload, I, K, O> extends 
   public void doAppend() {
     while (recordItr.hasNext()) {
       HoodieRecord record = recordItr.next();
+      // 有记录存在，则会进行初始化（init），初始化包括统计信息的初始化、HoodieLogFormatWriter的初始化等
       init(record);
+      // 刷盘
       flushToDiskIfRequired(record);
+      // 记录缓存起来
       writeToBuffer(record);
     }
     appendDataAndDeleteBlocks(header);
@@ -388,22 +392,27 @@ public class HoodieAppendHandle<T extends HoodieRecordPayload, I, K, O> extends 
       header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, instantTime);
       header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, writeSchemaWithMetaFields.toString());
       List<HoodieLogBlock> blocks = new ArrayList<>(2);
+      // 新插入的记录不为空
       if (recordList.size() > 0) {
         String keyField = config.populateMetaFields()
             ? HoodieRecord.RECORD_KEY_METADATA_FIELD
             : hoodieTable.getMetaClient().getTableConfig().getRecordKeyFieldProp();
-
+        // 使用Writer写入Data类型的Block
         blocks.add(getBlock(config, pickLogDataBlockFormat(), recordList, header, keyField));
       }
-
+      // 删除的记录不为空
       if (recordsToDelete.size() > 0) {
+        // 使用Writer写入Delete类型的Block
         blocks.add(new HoodieDeleteBlock(recordsToDelete.toArray(new DeleteRecord[0]), header));
       }
 
       if (blocks.size() > 0) {
         AppendResult appendResult = writer.appendBlocks(blocks);
         processAppendResult(appendResult, recordList);
+
+        // 清空缓存
         recordList.clear();
+        // 清空缓存
         recordsToDelete.clear();
       }
     } catch (Exception e) {
@@ -503,13 +512,17 @@ public class HoodieAppendHandle<T extends HoodieRecordPayload, I, K, O> extends 
     }
     // fetch the ordering val first in case the record was deflated.
     final Comparable<?> orderingVal = record.getData().getOrderingValue();
+
+    // 获取IndexedRecord便于写入log文件
     Option<IndexedRecord> indexedRecord = getIndexedRecord(record);
+    // 存在表示是新插入的记录
     if (indexedRecord.isPresent()) {
       // Skip the ignored record.
       if (!indexedRecord.get().equals(IGNORE_RECORD)) {
         recordList.add(indexedRecord.get());
       }
     } else {
+      // 不存在表示需要删除
       recordsToDelete.add(DeleteRecord.create(record.getKey(), orderingVal));
     }
     numberOfRecords++;
@@ -520,13 +533,17 @@ public class HoodieAppendHandle<T extends HoodieRecordPayload, I, K, O> extends 
    */
   private void flushToDiskIfRequired(HoodieRecord record) {
     // Append if max number of records reached to achieve block size
+    // 当前记录条数大于等于block块可以存的最大记录条数
     if (numberOfRecords >= (int) (maxBlockSize / averageRecordSize)) {
       // Recompute averageRecordSize before writing a new block and update existing value with
       // avg of new and old
       LOG.info("AvgRecordSize => " + averageRecordSize);
+      // 重新计算记录的平均大小
       averageRecordSize = (averageRecordSize + sizeEstimator.sizeEstimate(record)) / 2;
+      // append写入
       appendDataAndDeleteBlocks(header);
       estimatedNumberOfBytesWritten += averageRecordSize * numberOfRecords;
+      // 重置当前记录条数
       numberOfRecords = 0;
     }
   }

@@ -219,13 +219,16 @@ public abstract class AbstractHoodieLogRecordReader {
           logFilePaths.stream().map(logFile -> new HoodieLogFile(new Path(logFile))).collect(Collectors.toList()),
           readerSchema, readBlocksLazily, reverseReader, bufferSize, enableRecordLookups, keyField, internalSchema);
 
+      // 已扫描文件列表
       Set<HoodieLogFile> scannedLogFiles = new HashSet<>();
       while (logFormatReaderWrapper.hasNext()) {
+        // 获取日志文件
         HoodieLogFile logFile = logFormatReaderWrapper.getLogFile();
         LOG.info("Scanning log file " + logFile);
         scannedLogFiles.add(logFile);
         totalLogFiles.set(scannedLogFiles.size());
         // Use the HoodieLogFileReader to iterate through the blocks in the log file
+        // 获取下个block块
         HoodieLogBlock logBlock = logFormatReaderWrapper.next();
         final String instantTime = logBlock.getLogBlockHeader().get(INSTANT_TIME);
         totalLogBlocks.incrementAndGet();
@@ -233,6 +236,7 @@ public abstract class AbstractHoodieLogRecordReader {
             && !HoodieTimeline.compareTimestamps(logBlock.getLogBlockHeader().get(INSTANT_TIME), HoodieTimeline.LESSER_THAN_OR_EQUALS, this.latestInstantTime
         )) {
           // hit a block with instant time greater than should be processed, stop processing further
+          // 读取的文件块不为CORRUPT类型，并且文件块的时间大于最新的时间，表示非同一批的提交，退出处理
           break;
         }
         if (logBlock.getBlockType() != CORRUPT_BLOCK && logBlock.getBlockType() != COMMAND_BLOCK) {
@@ -252,12 +256,15 @@ public abstract class AbstractHoodieLogRecordReader {
           case PARQUET_DATA_BLOCK:
             LOG.info("Reading a data block from file " + logFile.getPath() + " at instant "
                 + logBlock.getLogBlockHeader().get(INSTANT_TIME));
+            // 为新instant的block块并且为非延迟读取
             if (isNewInstantBlock(logBlock) && !readBlocksLazily) {
               // If this is an avro data block belonging to a different commit/instant,
               // then merge the last blocks and records into the main result
+              // 处理之前队列里的同一批block块
               processQueuedBlocksForInstant(currentInstantLogBlocks, scannedLogFiles.size(), keySpecOpt);
             }
             // store the current block
+            // 将当前block块放入队列
             currentInstantLogBlocks.push(logBlock);
             break;
           case DELETE_BLOCK:
@@ -376,9 +383,11 @@ public abstract class AbstractHoodieLogRecordReader {
    * handle it.
    */
   private void processDataBlock(HoodieDataBlock dataBlock, Option<KeySpec> keySpecOpt) throws Exception {
+    // 获取数据块的所有记录
     try (ClosableIterator<IndexedRecord> recordIterator = getRecordsIterator(dataBlock, keySpecOpt)) {
       Option<Schema> schemaOption = getMergedSchema(dataBlock);
       while (recordIterator.hasNext()) {
+        // 构造HoodieRecord
         IndexedRecord currentRecord = recordIterator.next();
         IndexedRecord record = schemaOption.isPresent() ? HoodieAvroUtils.rewriteRecordWithNewSchema(currentRecord, schemaOption.get(), new HashMap<>()) : currentRecord;
         processNextRecord(createHoodieRecord(record, this.hoodieTableMetaClient.getTableConfig(), this.payloadClassFQN,
@@ -458,6 +467,7 @@ public abstract class AbstractHoodieLogRecordReader {
     while (!logBlocks.isEmpty()) {
       LOG.info("Number of remaining logblocks to merge " + logBlocks.size());
       // poll the element at the bottom of the stack since that's the order it was inserted
+      // 取出队尾block
       HoodieLogBlock lastBlock = logBlocks.pollLast();
       switch (lastBlock.getBlockType()) {
         case AVRO_DATA_BLOCK:
@@ -470,6 +480,7 @@ public abstract class AbstractHoodieLogRecordReader {
           processDataBlock((HoodieParquetDataBlock) lastBlock, keySpecOpt);
           break;
         case DELETE_BLOCK:
+          // 处理删除的所有key
           Arrays.stream(((HoodieDeleteBlock) lastBlock).getRecordsToDelete()).forEach(this::processNextDeletedRecord);
           break;
         case CORRUPT_BLOCK:

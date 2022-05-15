@@ -143,13 +143,18 @@ public class HoodieMergedLogRecordScanner extends AbstractHoodieLogRecordReader
 
   @Override
   protected void processNextRecord(HoodieRecord<? extends HoodieRecordPayload> hoodieRecord) throws IOException {
+    // 获取key
     String key = hoodieRecord.getRecordKey();
+
+    // Map缓存中包含该key，该Map基于Disk实现
     if (records.containsKey(key)) {
       // Merge and store the merged record. The HoodieRecordPayload implementation is free to decide what should be
       // done when a DELETE (empty payload) is encountered before or after an insert/update.
 
       HoodieRecord<? extends HoodieRecordPayload> oldRecord = records.get(key);
       HoodieRecordPayload oldValue = oldRecord.getData();
+
+      // 将内容合并
       HoodieRecordPayload combinedValue = hoodieRecord.getData().preCombine(oldValue);
       // If combinedValue is oldValue, no need rePut oldRecord
       if (combinedValue != oldValue) {
@@ -184,6 +189,7 @@ public class HoodieMergedLogRecordScanner extends AbstractHoodieLogRecordReader
       }
     }
     // Put the DELETE record
+    // 生成空的内容，然后放入缓存
     records.put(key, SpillableMapUtils.generateEmptyPayload(key,
         deleteRecord.getPartitionPath(), deleteRecord.getOrderingValue(), getPayloadClassFQN()));
   }

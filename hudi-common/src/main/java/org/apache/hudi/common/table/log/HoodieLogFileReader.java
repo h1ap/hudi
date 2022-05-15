@@ -155,6 +155,8 @@ public class HoodieLogFileReader implements HoodieLogFormat.Reader {
     } catch (EOFException | CorruptedLogFileException e) {
       // An exception reading any of the above indicates a corrupt block
       // Create a corrupt block by finding the next MAGIC marker or EOF
+
+      // 异常时创建CORRUPT的Block
       return createCorruptBlock();
     }
 

@@ -160,14 +160,17 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
         // there is no owner or instant time per se for archival.
         txnManager.beginTransaction(Option.empty(), Option.empty());
       }
+      // 获取需要归档的 Instant
       List<HoodieInstant> instantsToArchive = getInstantsToArchive().collect(Collectors.toList());
       verifyLastMergeArchiveFilesIfNecessary(context);
       boolean success = true;
       if (!instantsToArchive.isEmpty()) {
         this.writer = openWriter();
         LOG.info("Archiving instants " + instantsToArchive);
+        // 归档
         archive(context, instantsToArchive);
         LOG.info("Deleting archived instants " + instantsToArchive);
+        // 删除
         success = deleteArchivedInstants(instantsToArchive, context);
       } else {
         LOG.info("No Instants to archive");
@@ -270,6 +273,7 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
       // If plan exist, last merge small archive files was failed.
       // we need to revert or complete last action.
       if (fs.exists(planPath)) {
+        // avro动态生成
         HoodieMergeArchiveFilePlan plan = null;
         try {
           plan = TimelineMetadataUtils.deserializeAvroMetadata(FileIOUtils.readDataFromPath(fs, planPath).get(), HoodieMergeArchiveFilePlan.class);
@@ -330,6 +334,7 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
 
   public void mergeArchiveFiles(List<FileStatus> compactCandidate) throws IOException {
     LOG.info("Starting to merge small archive files.");
+    // avro动态生成
     Schema wrapperSchema = HoodieArchivedMetaEntry.getClassSchema();
     try {
       List<IndexedRecord> records = new ArrayList<>();
@@ -461,13 +466,17 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
     Stream<HoodieInstant> instants = Stream.concat(getCleanInstantsToArchive(), getCommitInstantsToArchive());
 
     // For archiving and cleaning instants, we need to include intermediate state files if they exist
+    // 所有instant组成的timeline(包括各种中间状态的instant)
     HoodieActiveTimeline rawActiveTimeline = new HoodieActiveTimeline(metaClient, false);
+
+    // 按照时间和action进行分类
     Map<Pair<String, String>, List<HoodieInstant>> groupByTsAction = rawActiveTimeline.getInstants()
         .collect(Collectors.groupingBy(i -> Pair.of(i.getTimestamp(),
             HoodieInstant.getComparableAction(i.getAction()))));
 
     // If metadata table is enabled, do not archive instants which are more recent than the last compaction on the
     // metadata table.
+    // 如果元数据表被启用，不要归档比元数据表上最后一次压实更近的实例。
     if (config.isMetadataTableEnabled()) {
       try (HoodieTableMetadata tableMetadata = HoodieTableMetadata.create(table.getContext(), config.getMetadataConfig(),
           config.getBasePath(), FileSystemViewStorageConfig.SPILLABLE_DIR.defaultValue())) {
@@ -488,6 +497,7 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
     // If this is a metadata table, do not archive the commits that live in data set
     // active timeline. This is required by metadata table,
     // see HoodieTableMetadataUtil#processRollbackMetadata for details.
+    // 如果这是个元数据表，不要归档在数据集活动时间线中的提交。这是元数据表所要求的
     if (HoodieTableMetadata.isMetadataTable(config.getBasePath())) {
       HoodieTableMetaClient dataMetaClient = HoodieTableMetaClient.builder()
           .setBasePath(HoodieTableMetadata.getDatasetBasePath(config.getBasePath()))
@@ -500,6 +510,8 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
       }
     }
 
+
+    // 所有待处理的instant
     return instants.flatMap(hoodieInstant -> {
       List<HoodieInstant> instantsToStream = groupByTsAction.get(Pair.of(hoodieInstant.getTimestamp(),
                 HoodieInstant.getComparableAction(hoodieInstant.getAction())));
@@ -520,6 +532,7 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
     ).map(Path::toString).collect(Collectors.toList());
 
     context.setJobStatus(this.getClass().getSimpleName(), "Delete archived instants");
+    // 删除
     Map<String, Boolean> resultDeleteInstantFiles = deleteFilesParallelize(metaClient, instantFiles, context, false);
 
     for (Map.Entry<String, Boolean> result : resultDeleteInstantFiles.entrySet()) {
@@ -528,10 +541,12 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
     }
 
     // Remove older meta-data from auxiliary path too
+    // 获取最后一个instant
     Option<HoodieInstant> latestCommitted = Option.fromJavaOptional(archivedInstants.stream().filter(i -> i.isCompleted() && (i.getAction().equals(HoodieTimeline.COMMIT_ACTION)
         || (i.getAction().equals(HoodieTimeline.DELTA_COMMIT_ACTION)))).max(Comparator.comparing(HoodieInstant::getTimestamp)));
     LOG.info("Latest Committed Instant=" + latestCommitted);
     if (latestCommitted.isPresent()) {
+      // 删除aux目录下的文件
       success &= deleteAllInstantsOlderOrEqualsInAuxMetaFolder(latestCommitted.get());
     }
     return success;
@@ -588,6 +603,7 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
       List<IndexedRecord> records = new ArrayList<>();
       for (HoodieInstant hoodieInstant : instants) {
         try {
+          // 删除
           deleteAnyLeftOverMarkers(context, hoodieInstant);
           // in local FS and HDFS, there could be empty completed instants due to crash.
           if (table.getActiveTimeline().isEmpty(hoodieInstant) && hoodieInstant.isCompleted()) {
@@ -606,6 +622,7 @@ public class HoodieTimelineArchiver<T extends HoodieAvroPayload, I, K, O> {
           }
         }
       }
+      // 写入
       writeToFile(wrapperSchema, records);
     } catch (Exception e) {
       throw new HoodieCommitException("Failed to archive commits", e);
