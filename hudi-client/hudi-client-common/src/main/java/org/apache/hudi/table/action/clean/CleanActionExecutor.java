@@ -91,6 +91,7 @@ public class CleanActionExecutor<T extends HoodieRecordPayload, I, K, O> extends
 
   private static Stream<Pair<String, PartitionCleanStat>> deleteFilesFunc(Iterator<Pair<String, CleanFileInfo>> cleanFileInfo, HoodieTable table) {
     Map<String, PartitionCleanStat> partitionCleanStatMap = new HashMap<>();
+    // 直接调用FileSystem进行删除
     FileSystem fs = table.getMetaClient().getFs();
 
     cleanFileInfo.forEachRemaining(partitionDelFileTuple -> {
@@ -134,11 +135,13 @@ public class CleanActionExecutor<T extends HoodieRecordPayload, I, K, O> extends
 
     context.setJobStatus(this.getClass().getSimpleName(), "Perform cleaning of partitions");
 
+    // 获取每个分区下需要删除的文件
     Stream<Pair<String, CleanFileInfo>> filesToBeDeletedPerPartition =
         cleanerPlan.getFilePathsToBeDeletedPerPartition().entrySet().stream()
             .flatMap(x -> x.getValue().stream().map(y -> new ImmutablePair<>(x.getKey(),
                 new CleanFileInfo(y.getFilePath(), y.getIsBootstrapBaseFile()))));
 
+    // 调用deleteFilesFunc执行删除
     Stream<ImmutablePair<String, PartitionCleanStat>> partitionCleanStats =
         context.mapPartitionsToPairAndReduceByKey(filesToBeDeletedPerPartition,
             iterator -> deleteFilesFunc(iterator, table), PartitionCleanStat::merge, cleanerParallelism);
@@ -146,6 +149,7 @@ public class CleanActionExecutor<T extends HoodieRecordPayload, I, K, O> extends
     Map<String, PartitionCleanStat> partitionCleanStatsMap = partitionCleanStats
         .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
+    // 获取需要被删除的分区
     List<String> partitionsToBeDeleted = cleanerPlan.getPartitionsToBeDeleted() != null ? cleanerPlan.getPartitionsToBeDeleted() : new ArrayList<>();
     partitionsToBeDeleted.forEach(entry -> {
       try {
@@ -184,7 +188,9 @@ public class CleanActionExecutor<T extends HoodieRecordPayload, I, K, O> extends
    */
   HoodieCleanMetadata runPendingClean(HoodieTable<T, I, K, O> table, HoodieInstant cleanInstant) {
     try {
+      // metadata中获取clean计划
       HoodieCleanerPlan cleanerPlan = CleanerUtils.getCleanerPlan(table.getMetaClient(), cleanInstant);
+      // 执行清除
       return runClean(table, cleanInstant, cleanerPlan);
     } catch (IOException e) {
       throw new HoodieIOException(e.getMessage(), e);
@@ -199,6 +205,7 @@ public class CleanActionExecutor<T extends HoodieRecordPayload, I, K, O> extends
       final HoodieInstant inflightInstant;
       final HoodieTimer timer = new HoodieTimer();
       timer.startTimer();
+      // 如果是.request文件
       if (cleanInstant.isRequested()) {
         inflightInstant = table.getActiveTimeline().transitionCleanRequestedToInflight(cleanInstant,
             TimelineMetadataUtils.serializeCleanerPlan(cleanerPlan));
@@ -206,6 +213,7 @@ public class CleanActionExecutor<T extends HoodieRecordPayload, I, K, O> extends
         inflightInstant = cleanInstant;
       }
 
+      // 执行清除
       List<HoodieCleanStat> cleanStats = clean(context, cleanerPlan);
       if (cleanStats.isEmpty()) {
         return HoodieCleanMetadata.newBuilder().build();
@@ -238,23 +246,27 @@ public class CleanActionExecutor<T extends HoodieRecordPayload, I, K, O> extends
   public HoodieCleanMetadata execute() {
     List<HoodieCleanMetadata> cleanMetadataList = new ArrayList<>();
     // If there are inflight(failed) or previously requested clean operation, first perform them
+    // 获取未完成的clean操作
     List<HoodieInstant> pendingCleanInstants = table.getCleanTimeline()
         .filterInflightsAndRequested().getInstants().collect(Collectors.toList());
     if (pendingCleanInstants.size() > 0) {
       // try to clean old history schema.
       try {
         FileBasedInternalSchemaStorageManager fss = new FileBasedInternalSchemaStorageManager(table.getMetaClient());
+        // 清理old schema，主要是schema evolution相关
         fss.cleanOldFiles(pendingCleanInstants.stream().map(is -> is.getTimestamp()).collect(Collectors.toList()));
       } catch (Exception e) {
         // we should not affect original clean logic. Swallow exception and log warn.
         LOG.warn("failed to clean old history schema");
       }
       pendingCleanInstants.forEach(hoodieInstant -> {
+        // 清理instants
         if (table.getCleanTimeline().isEmpty(hoodieInstant)) {
           table.getActiveTimeline().deleteEmptyInstantIfExists(hoodieInstant);
         } else {
           LOG.info("Finishing previously unfinished cleaner instant=" + hoodieInstant);
           try {
+            // 先处理未完成的clean操作
             cleanMetadataList.add(runPendingClean(table, hoodieInstant));
           } catch (Exception e) {
             LOG.warn("Failed to perform previous clean operation, instant: " + hoodieInstant, e);

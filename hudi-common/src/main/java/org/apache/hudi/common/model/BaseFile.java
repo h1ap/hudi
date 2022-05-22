@@ -32,9 +32,13 @@ public class BaseFile implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
+  // 文件状态
   private transient FileStatus fileStatus;
+  // 文件全路径
   private final String fullPath;
+  // 文件名
   private final String fileName;
+  // 文件大小
   private long fileLen;
 
   public BaseFile(BaseFile dataFile) {

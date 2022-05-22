@@ -852,15 +852,19 @@ public abstract class BaseHoodieWriteClient<T extends HoodieRecordPayload, I, K,
       return null;
     }
     final Timer.Context timerContext = metrics.getCleanCtx();
+    // 回滚写入失败的instant
     CleanerUtils.rollbackFailedWrites(config.getFailedWritesCleanPolicy(),
         HoodieTimeline.CLEAN_ACTION, () -> rollbackFailedWrites(skipLocking));
 
     HoodieCleanMetadata metadata = null;
+    // 获取table
     HoodieTable table = createTable(config, hadoopConf);
+
     if (config.allowMultipleCleans() || !table.getActiveTimeline().getCleanerTimeline().filterInflightsAndRequested().firstInstant().isPresent()) {
       LOG.info("Cleaner started");
       // proceed only if multiple clean schedules are enabled or if there are no pending cleans.
       if (scheduleInline) {
+        //
         scheduleTableServiceInternal(cleanInstantTime, Option.empty(), TableServiceType.CLEAN);
         table.getMetaClient().reloadActiveTimeline();
       }

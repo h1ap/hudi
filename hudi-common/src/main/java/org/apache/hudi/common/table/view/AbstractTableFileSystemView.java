@@ -164,38 +164,52 @@ public abstract class AbstractTableFileSystemView implements SyncableFileSystemV
 
   protected List<HoodieFileGroup> buildFileGroups(Stream<HoodieBaseFile> baseFileStream,
       Stream<HoodieLogFile> logFileStream, HoodieTimeline timeline, boolean addPendingCompactionFileSlice) {
+
+    // 获取所有数据文件对应的分区路径、文件ID（相同的分区路径、文件ID会对应数据文件列表）
     Map<Pair<String, String>, List<HoodieBaseFile>> baseFiles =
         baseFileStream.collect(Collectors.groupingBy((baseFile) -> {
           String partitionPathStr = getPartitionPathFromFilePath(baseFile.getPath());
           return Pair.of(partitionPathStr, baseFile.getFileId());
         }));
-
+    // 获取所有日志文件对应的分区路径、文件ID（相同的分区路径、文件ID会对应日志文件列表）
     Map<Pair<String, String>, List<HoodieLogFile>> logFiles = logFileStream.collect(Collectors.groupingBy((logFile) -> {
       String partitionPathStr =
           FSUtils.getRelativePartitionPath(metaClient.getBasePathV2(), logFile.getPath().getParent());
       return Pair.of(partitionPathStr, logFile.getFileId());
     }));
 
+    // 初始化所有的数据文件和日志文件（过滤掉相同的<Partition, FileID>）
     Set<Pair<String, String>> fileIdSet = new HashSet<>(baseFiles.keySet());
     fileIdSet.addAll(logFiles.keySet());
 
     List<HoodieFileGroup> fileGroups = new ArrayList<>();
     fileIdSet.forEach(pair -> {
+
+      // 获取文件ID
       String fileId = pair.getValue();
       HoodieFileGroup group = new HoodieFileGroup(pair.getKey(), fileId, timeline);
+
+      // 包含在数据文件集合中
       if (baseFiles.containsKey(pair)) {
+        // 添加该数据文件
         baseFiles.get(pair).forEach(group::addBaseFile);
       }
+      // 包含在日志文件集合中
       if (logFiles.containsKey(pair)) {
+        // 添加该日志文件
         logFiles.get(pair).forEach(group::addLogFile);
       }
 
+      // 添加pending的compaction的FileSlice
       if (addPendingCompactionFileSlice) {
         Option<Pair<String, CompactionOperation>> pendingCompaction =
             getPendingCompactionOperationWithInstant(group.getFileGroupId());
+
+        // 存在pending的compaction
         if (pendingCompaction.isPresent()) {
           // If there is no delta-commit after compaction request, this step would ensure a new file-slice appears
           // so that any new ingestion uses the correct base-instant
+          // 添加至文件组
           group.addNewFileSliceAtInstant(pendingCompaction.get().getKey());
         }
       }

@@ -38,10 +38,13 @@ public class HoodieLogFile implements Serializable {
 
   private static final long serialVersionUID = 1L;
   public static final String DELTA_EXTENSION = ".log";
+  // 日志文件基准版本
   public static final Integer LOGFILE_BASE_VERSION = 1;
-
+  // 文件状态
   private transient FileStatus fileStatus;
+  // 文件路径
   private final String pathStr;
+  // 文件大小
   private long fileLen;
 
   public HoodieLogFile(HoodieLogFile logFile) {
