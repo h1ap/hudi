@@ -59,7 +59,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-public abstract class BaseTableMetadata implements HoodieTableMetadata {
+public abstract class  BaseTableMetadata implements HoodieTableMetadata {
 
   private static final Logger LOG = LogManager.getLogger(BaseTableMetadata.class);
 
@@ -108,11 +108,13 @@ public abstract class BaseTableMetadata implements HoodieTableMetadata {
   public List<String> getAllPartitionPaths() throws IOException {
     if (isMetadataTableEnabled) {
       try {
+        // 从.hoodie/metadata/*中读取分区信息
         return fetchAllPartitionPaths();
       } catch (Exception e) {
         throw new HoodieMetadataException("Failed to retrieve list of partition from metadata", e);
       }
     }
+    // 未开启元数据表
     return new FileSystemBackedTableMetadata(getEngineContext(), hadoopConf, dataBasePath,
         metadataConfig.shouldAssumeDatePartitioning()).getAllPartitionPaths();
   }
@@ -161,6 +163,7 @@ public abstract class BaseTableMetadata implements HoodieTableMetadata {
   @Override
   public Option<BloomFilter> getBloomFilter(final String partitionName, final String fileName)
       throws HoodieMetadataException {
+    // metadata table开启时，每个文件的bloomfilter转移到metadata table中
     if (!isBloomFilterIndexEnabled) {
       LOG.error("Metadata bloom filter index is disabled!");
       return Option.empty();
@@ -176,7 +179,7 @@ public abstract class BaseTableMetadata implements HoodieTableMetadata {
     ValidationUtils.checkState(bloomFilters.containsKey(partitionFileName));
     return Option.of(bloomFilters.get(partitionFileName));
   }
-
+ 
   @Override
   public Map<Pair<String, String>, BloomFilter> getBloomFilters(final List<Pair<String, String>> partitionNameFileNameList)
       throws HoodieMetadataException {
@@ -191,6 +194,7 @@ public abstract class BaseTableMetadata implements HoodieTableMetadata {
     HoodieTimer timer = new HoodieTimer().startTimer();
     Set<String> partitionIDFileIDSortedStrings = new TreeSet<>();
     Map<String, Pair<String, String>> fileToKeyMap = new HashMap<>();
+    // 将分区名字和文件名字转化为base64编码后拼接得到bloomfilter的key
     partitionNameFileNameList.forEach(partitionNameFileNamePair -> {
           final String bloomFilterIndexKey = HoodieMetadataPayload.getBloomFilterIndexKey(
               new PartitionIndexID(partitionNameFileNamePair.getLeft()), new FileIndexID(partitionNameFileNamePair.getRight()));
@@ -205,6 +209,7 @@ public abstract class BaseTableMetadata implements HoodieTableMetadata {
     metrics.ifPresent(m -> m.updateMetrics(HoodieMetadataMetrics.LOOKUP_BLOOM_FILTERS_METADATA_STR,
         (timer.endTimer() / partitionIDFileIDStrings.size())));
 
+    // 获取BloomFilter
     Map<Pair<String, String>, BloomFilter> partitionFileToBloomFilterMap = new HashMap<>();
     for (final Pair<String, Option<HoodieRecord<HoodieMetadataPayload>>> entry : hoodieRecordList) {
       if (entry.getRight().isPresent()) {
@@ -252,6 +257,7 @@ public abstract class BaseTableMetadata implements HoodieTableMetadata {
     List<Pair<String, Option<HoodieRecord<HoodieMetadataPayload>>>> hoodieRecordList =
         getRecordsByKeys(columnStatKeys, MetadataPartitionType.COLUMN_STATS.getPartitionPath());
     metrics.ifPresent(m -> m.updateMetrics(HoodieMetadataMetrics.LOOKUP_COLUMN_STATS_METADATA_STR, timer.endTimer()));
+
 
     Map<Pair<String, String>, HoodieMetadataColumnStats> fileToColumnStatMap = new HashMap<>();
     for (final Pair<String, Option<HoodieRecord<HoodieMetadataPayload>>> entry : hoodieRecordList) {

@@ -119,7 +119,9 @@ public class HoodieWrapperFileSystem extends FileSystem {
     return executeFuncWithTimeMetrics(metricName, p, func);
   }
 
-  public HoodieWrapperFileSystem() {}
+  public HoodieWrapperFileSystem() {
+
+  }
 
   public HoodieWrapperFileSystem(FileSystem fileSystem, ConsistencyGuard consistencyGuard) {
     this.fileSystem = fileSystem;

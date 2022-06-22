@@ -119,6 +119,7 @@ public class HoodieBackedTableMetadata extends BaseTableMetadata {
       try {
         this.metadataMetaClient = HoodieTableMetaClient.builder().setConf(hadoopConf.get()).setBasePath(metadataBasePath).build();
         this.metadataTableConfig = metadataMetaClient.getTableConfig();
+        // metadata table bloomfilter
         this.isBloomFilterIndexEnabled = metadataConfig.isBloomFilterIndexEnabled();
         this.isColumnStatsIndexEnabled = metadataConfig.isColumnStatsIndexEnabled();
       } catch (TableNotFoundException e) {
@@ -194,11 +195,14 @@ public class HoodieBackedTableMetadata extends BaseTableMetadata {
   @Override
   public List<Pair<String, Option<HoodieRecord<HoodieMetadataPayload>>>> getRecordsByKeys(List<String> keys,
                                                                                           String partitionName) {
+    // 获取((partitionName, fileslice) -> keys)
     Map<Pair<String, FileSlice>, List<String>> partitionFileSliceToKeysMap = getPartitionFileSliceToKeysMapping(partitionName, keys);
+
     List<Pair<String, Option<HoodieRecord<HoodieMetadataPayload>>>> result = new ArrayList<>();
     AtomicInteger fileSlicesKeysCount = new AtomicInteger();
     partitionFileSliceToKeysMap.forEach((partitionFileSlicePair, fileSliceKeys) -> {
       Pair<HoodieFileReader, HoodieMetadataMergedLogRecordReader> readers =
+          //
           getOrCreateReaders(partitionName, partitionFileSlicePair.getRight());
       try {
         List<Long> timings = new ArrayList<>();
@@ -372,6 +376,7 @@ public class HoodieBackedTableMetadata extends BaseTableMetadata {
     Map<Pair<String, FileSlice>, List<String>> partitionFileSliceToKeysMap = new HashMap<>();
     for (String key : keys) {
       if (!isNullOrEmpty(latestFileSlices)) {
+        // 根据key的hash值获取映射的file slice
         final FileSlice slice = latestFileSlices.get(HoodieTableMetadataUtil.mapRecordKeyToFileGroupIndex(key,
             latestFileSlices.size()));
         final Pair<String, FileSlice> partitionNameFileSlicePair = Pair.of(partitionName, slice);
@@ -398,6 +403,7 @@ public class HoodieBackedTableMetadata extends BaseTableMetadata {
       HoodieTimer timer = new HoodieTimer().startTimer();
       // Open base file reader
       Pair<HoodieFileReader, Long> baseFileReaderOpenTimePair = getBaseFileReader(slice, timer);
+      // 这个可能是null
       HoodieFileReader baseFileReader = baseFileReaderOpenTimePair.getKey();
       final long baseFileOpenMs = baseFileReaderOpenTimePair.getValue();
 

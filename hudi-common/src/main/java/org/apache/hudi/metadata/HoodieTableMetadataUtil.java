@@ -982,7 +982,6 @@ public class HoodieTableMetadataUtil {
     for (int i = 0; i < recordKey.length(); ++i) {
       h = 31 * h + recordKey.charAt(i);
     }
-
     return Math.abs(Math.abs(h) % numFileGroups);
   }
 

@@ -506,7 +506,25 @@
   </build>
 
   <dependencyManagement>
+
+
     <dependencies>
+      <!-- cassandra connector -->
+      <dependency>
+        <groupId>com.datastax.oss</groupId>
+        <artifactId>java-driver-core</artifactId>
+        <version>4.14.1</version>
+      </dependency>
+      <dependency>
+        <groupId>com.datastax.cassandra</groupId>
+        <artifactId>cassandra-driver-core</artifactId>
+        <version>3.11.2</version>
+      </dependency>
+      <dependency>
+        <groupId>com.codahale.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>3.0.2</version>
+      </dependency>
       <!-- Logging -->
       <dependency>
         <groupId>log4j</groupId>

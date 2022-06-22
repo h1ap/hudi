@@ -115,16 +115,22 @@ public class HoodieTableMetaClient implements Serializable {
                                 ConsistencyGuardConfig consistencyGuardConfig, Option<TimelineLayoutVersion> layoutVersion,
                                 String payloadClassName, FileSystemRetryConfig fileSystemRetryConfig) {
     LOG.info("Loading HoodieTableMetaClient from " + basePath);
+    // 用以处理 S3 最终一致性问题，已废弃
     this.consistencyGuardConfig = consistencyGuardConfig;
+    // 文件系统重试相关的配置选项，以帮助处理运行时异常，如 list/get/put/delete 性能问题
     this.fileSystemRetryConfig = fileSystemRetryConfig;
     this.hadoopConf = new SerializableConfiguration(conf);
+    // CachingPath使用volatile修饰成员变量避免重复计算路劲
     this.basePath = new SerializablePath(new CachingPath(basePath));
     this.metaPath = new SerializablePath(new CachingPath(basePath, METAFOLDER_NAME));
+    // HoodieWrapperFileSystem用于计算数据流写入的大小
     this.fs = getFs();
     TableNotFoundException.checkTableValidity(fs, this.basePath.get(), metaPath.get());
     this.tableConfig = new HoodieTableConfig(fs, metaPath.toString(), payloadClassName);
     this.tableType = tableConfig.getTableType();
+    // timeline版本
     Option<TimelineLayoutVersion> tableConfigVersion = tableConfig.getTimelineLayoutVersion();
+
     if (layoutVersion.isPresent() && tableConfigVersion.isPresent()) {
       // Ensure layout version passed in config is not lower than the one seen in hoodie.properties
       ValidationUtils.checkArgument(layoutVersion.get().compareTo(tableConfigVersion.get()) >= 0,
@@ -135,6 +141,7 @@ public class HoodieTableMetaClient implements Serializable {
     this.loadActiveTimelineOnLoad = loadActiveTimelineOnLoad;
     LOG.info("Finished Loading Table of type " + tableType + "(version=" + timelineLayoutVersion + ", baseFileFormat="
         + this.tableConfig.getBaseFileFormat() + ") from " + basePath);
+    // 启动是否加载时间线
     if (loadActiveTimelineOnLoad) {
       LOG.info("Loading Active commit timeline for " + basePath);
       getActiveTimeline();

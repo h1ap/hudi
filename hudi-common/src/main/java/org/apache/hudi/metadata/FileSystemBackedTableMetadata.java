@@ -29,11 +29,11 @@ import org.apache.hudi.common.model.HoodieRecord;
 import org.apache.hudi.common.table.HoodieTableMetaClient;
 import org.apache.hudi.common.util.Option;
 import org.apache.hudi.common.util.collection.Pair;
+import org.apache.hudi.exception.HoodieMetadataException;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hudi.exception.HoodieMetadataException;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -43,6 +43,9 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
+/**
+ * 直接listing filesystem
+ */
 public class FileSystemBackedTableMetadata implements HoodieTableMetadata {
 
   private static final int DEFAULT_LISTING_PARALLELISM = 1500;
