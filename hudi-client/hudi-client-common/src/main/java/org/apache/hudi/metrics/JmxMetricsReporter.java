@@ -31,7 +31,6 @@ import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
-
 /**
  * Implementation of Jmx reporter, which used to report jmx metric.
  */

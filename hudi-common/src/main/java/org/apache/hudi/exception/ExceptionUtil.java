@@ -24,7 +24,9 @@ import javax.annotation.Nonnull;
  * Class collecting common utilities helping in handling {@link Exception}s
  */
 public final class ExceptionUtil {
-  private ExceptionUtil() {}
+  private ExceptionUtil() {
+
+  }
 
   /**
    * Fetches inner-most cause of the provided {@link Throwable}

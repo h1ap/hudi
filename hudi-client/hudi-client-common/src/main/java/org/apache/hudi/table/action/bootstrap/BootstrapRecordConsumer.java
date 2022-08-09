@@ -48,7 +48,9 @@ public class BootstrapRecordConsumer extends BoundedInMemoryQueueConsumer<Hoodie
   }
 
   @Override
-  protected void finish() {}
+  protected void finish() {
+
+  }
 
   @Override
   protected Void getResult() {

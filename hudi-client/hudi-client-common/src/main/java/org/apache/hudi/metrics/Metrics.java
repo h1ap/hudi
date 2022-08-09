@@ -123,8 +123,8 @@ public class Metrics {
   public static void registerGauge(String metricName, final long value) {
     try {
       MetricRegistry registry = Metrics.getInstance().getRegistry();
-      HoodieGauge guage = (HoodieGauge) registry.gauge(metricName, () -> new HoodieGauge<>(value));
-      guage.setValue(value);
+      // HoodieGauge guage = (HoodieGauge) registry.gauge(metricName, () -> new HoodieGauge<>(value));
+      // guage.setValue(value);
     } catch (Exception e) {
       // Here we catch all exception, so the major upsert pipeline will not be affected if the
       // metrics system has some issues.

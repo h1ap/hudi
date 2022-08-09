@@ -107,7 +107,6 @@ public abstract class AsyncCompactService extends HoodieAsyncTableService {
     }, executor)).toArray(CompletableFuture[]::new)), executor);
   }
 
-
   /**
    * Check whether compactor thread needs to be stopped.
    * @return

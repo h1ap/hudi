@@ -83,7 +83,6 @@ public class CollectionUtils {
     return combined;
   }
 
-
   /**
    * Combines provided {@link List}s into one, returning new instance of {@link ArrayList}
    */

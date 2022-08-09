@@ -33,7 +33,9 @@ public class JavaUpgradeDowngradeHelper implements SupportsUpgradeDowngrade {
   private static final JavaUpgradeDowngradeHelper SINGLETON_INSTANCE =
       new JavaUpgradeDowngradeHelper();
 
-  private JavaUpgradeDowngradeHelper() {}
+  private JavaUpgradeDowngradeHelper() {
+
+  }
 
   public static JavaUpgradeDowngradeHelper getInstance() {
     return SINGLETON_INSTANCE;

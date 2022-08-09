@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hudi.common.util.ReflectionUtils;
 
-
 /**
  * Interface which defines a lightweight Metrics Registry to track Hudi events.
  */

@@ -49,7 +49,9 @@ public abstract class CassandraUtils {
     return cluster;
   }
 
-  private CassandraUtils() {}
+  private CassandraUtils() {
+
+  }
 
   public static List<String> lists(String path) {
 
@@ -59,7 +61,7 @@ public abstract class CassandraUtils {
       final List<Row> rows = rs.all();
       rows.stream().forEach(System.out::println);
     } catch (Exception ex) {
-
+      ex.printStackTrace();
     }
     return null;
   }
@@ -73,7 +75,9 @@ public abstract class CassandraUtils {
 
     List<Session> sessions = new ArrayList<>();
 
-    for (int i = 0; i < thread; ++i) sessions.add(clr.connect(KEY_SPACE));
+    for (int i = 0; i < thread; ++i) {
+      sessions.add(clr.connect(KEY_SPACE));
+    }
 
     for (int i = 0; i < thread * 100000; ++i) {
       int finalI = i;

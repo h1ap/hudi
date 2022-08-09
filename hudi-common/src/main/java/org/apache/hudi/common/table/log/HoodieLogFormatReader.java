@@ -133,7 +133,9 @@ public class HoodieLogFormatReader implements HoodieLogFormat.Reader {
   }
 
   @Override
-  public void remove() {}
+  public void remove() {
+
+  }
 
   @Override
   public boolean hasPrev() {

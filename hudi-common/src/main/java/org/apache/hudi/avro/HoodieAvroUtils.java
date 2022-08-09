@@ -574,7 +574,6 @@ public class HoodieAvroUtils {
     throw new HoodieException("Failed to get schema. Not a valid field name: " + fieldName);
   }
 
-
   /**
    * Get schema for the given field and write schema. Field can be nested, denoted by dot notation. e.g: a.b.c
    * Use this method when record is not available. Otherwise, prefer to use {@link #getNestedFieldSchemaFromRecord(GenericRecord, String)}

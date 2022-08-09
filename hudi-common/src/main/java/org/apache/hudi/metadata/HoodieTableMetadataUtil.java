@@ -55,6 +55,7 @@ import org.apache.hudi.exception.HoodieIOException;
 import org.apache.hudi.exception.HoodieMetadataException;
 import org.apache.hudi.io.storage.HoodieFileReader;
 import org.apache.hudi.io.storage.HoodieFileReaderFactory;
+import org.apache.hudi.util.Lazy;
 
 import org.apache.avro.AvroTypeException;
 import org.apache.avro.LogicalTypes;
@@ -63,7 +64,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hudi.util.Lazy;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 

@@ -63,7 +63,9 @@ public class HoodieRealtimeFileSplit extends FileSplit implements RealtimeSplit 
    */
   private Option<HoodieVirtualKeyInfo> virtualKeyInfo = Option.empty();
 
-  public HoodieRealtimeFileSplit() {}
+  public HoodieRealtimeFileSplit() {
+
+  }
 
   public HoodieRealtimeFileSplit(FileSplit baseSplit,
                                  HoodieRealtimePath path)

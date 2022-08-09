@@ -76,7 +76,6 @@ public class StringUtils {
     return str == null || str.length() == 0;
   }
 
-
   /**
    * Returns the given string if it is non-null; the empty string otherwise.
    *

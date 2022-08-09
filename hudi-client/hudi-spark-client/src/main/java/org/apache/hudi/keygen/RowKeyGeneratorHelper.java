@@ -177,7 +177,6 @@ public class RowKeyGeneratorHelper {
     return val;
   }
 
-
   /**
    * Fetch the field value located at the positions requested for.
    *

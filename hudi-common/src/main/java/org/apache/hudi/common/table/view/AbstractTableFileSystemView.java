@@ -891,7 +891,6 @@ public abstract class AbstractTableFileSystemView implements SyncableFileSystemV
    */
   abstract Stream<BootstrapBaseFileMapping> fetchBootstrapBaseFiles();
 
-
   /**
    * Checks if partition is pre-loaded and available in store.
    *

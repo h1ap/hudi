@@ -1007,7 +1007,6 @@ public abstract class BaseHoodieWriteClient<T extends HoodieRecordPayload, I, K,
     return scheduleTableService(instantTime, extraMetadata, TableServiceType.COMPACT).isPresent();
   }
 
-
   /**
    * Schedules INDEX action.
    *

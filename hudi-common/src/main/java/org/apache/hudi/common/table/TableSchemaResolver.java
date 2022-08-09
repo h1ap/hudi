@@ -303,7 +303,6 @@ public class TableSchemaResolver {
     }
   }
 
-
   /**
    * Gets the schema for a hoodie table in Avro format from the HoodieCommitMetadata of the instant.
    *
@@ -496,7 +495,6 @@ public class TableSchemaResolver {
 
     return convertAvroSchemaToParquet(hFileReader.getSchema());
   }
-
 
   /**
    * Read the parquet schema from a ORC file.

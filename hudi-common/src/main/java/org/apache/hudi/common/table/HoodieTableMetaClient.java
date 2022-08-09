@@ -153,7 +153,9 @@ public class HoodieTableMetaClient implements Serializable {
    *
    * @deprecated
    */
-  public HoodieTableMetaClient() {}
+  public HoodieTableMetaClient() {
+
+  }
 
   public static HoodieTableMetaClient reload(HoodieTableMetaClient oldMetaClient) {
     return HoodieTableMetaClient.builder()

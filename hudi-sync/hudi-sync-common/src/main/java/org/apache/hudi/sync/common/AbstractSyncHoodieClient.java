@@ -114,7 +114,9 @@ public abstract class AbstractSyncHoodieClient implements AutoCloseable {
 
   public abstract void dropPartitions(String tableName, List<String> partitionsToDrop);
 
-  public  void updateTableProperties(String tableName, Map<String, String> tableProperties) {}
+  public  void updateTableProperties(String tableName, Map<String, String> tableProperties) {
+
+  }
 
   public abstract Map<String, String> getTableSchema(String tableName);
 

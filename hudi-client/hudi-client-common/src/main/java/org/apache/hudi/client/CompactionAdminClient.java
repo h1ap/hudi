@@ -486,7 +486,9 @@ public class CompactionAdminClient extends BaseHoodieClient {
    */
   public static class RenameOpResult extends OperationResult<RenameInfo> {
 
-    public RenameOpResult() {}
+    public RenameOpResult() {
+
+    }
 
     public RenameOpResult(Pair<HoodieLogFile, HoodieLogFile> op, boolean success, Option<Exception> exception) {
       super(
@@ -507,7 +509,9 @@ public class CompactionAdminClient extends BaseHoodieClient {
    */
   public static class ValidationOpResult extends OperationResult<CompactionOperation> {
 
-    public ValidationOpResult() {}
+    public ValidationOpResult() {
+
+    }
 
     public ValidationOpResult(CompactionOperation operation, boolean success, Option<Exception> exception) {
       super(operation, success, exception);
@@ -520,7 +524,9 @@ public class CompactionAdminClient extends BaseHoodieClient {
     public String srcPath;
     public String destPath;
 
-    public RenameInfo() {}
+    public RenameInfo() {
+
+    }
 
     public RenameInfo(String fileId, String srcPath, String destPath) {
       this.fileId = fileId;

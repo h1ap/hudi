@@ -123,7 +123,9 @@ public abstract class BaseMergeHelper<T extends HoodieRecordPayload, I, K, O> {
     }
 
     @Override
-    protected void finish() {}
+    protected void finish() {
+
+    }
 
     @Override
     protected Void getResult() {

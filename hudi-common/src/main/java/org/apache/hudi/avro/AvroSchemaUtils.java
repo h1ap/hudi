@@ -29,7 +29,9 @@ import static org.apache.hudi.common.util.ValidationUtils.checkState;
 
 public class AvroSchemaUtils {
 
-  private AvroSchemaUtils() {}
+  private AvroSchemaUtils() {
+
+  }
 
   /**
    * Appends provided new fields at the end of the given schema

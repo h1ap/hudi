@@ -201,7 +201,6 @@ public class KafkaConnectUtils {
     return typedProperties.getString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key());
   }
 
-
   /**
    * Get the Metadata from the latest commit file.
    *

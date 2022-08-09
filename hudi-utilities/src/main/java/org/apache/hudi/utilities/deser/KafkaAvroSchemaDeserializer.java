@@ -37,7 +37,9 @@ public class KafkaAvroSchemaDeserializer extends KafkaAvroDeserializer {
 
   private Schema sourceSchema;
 
-  public KafkaAvroSchemaDeserializer() {}
+  public KafkaAvroSchemaDeserializer() {
+
+  }
 
   public KafkaAvroSchemaDeserializer(SchemaRegistryClient client, Map<String, ?> props) {
     super(client, props);

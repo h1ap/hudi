@@ -25,7 +25,9 @@ import java.util.stream.Collectors;
 
 public final class TypeUtils {
 
-  private TypeUtils() {}
+  private TypeUtils() {
+
+  }
 
   /**
    * Maps values from the provided Enum's {@link Class} into corresponding values,
