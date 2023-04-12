@@ -70,11 +70,16 @@ public class HoodieTableFactory implements DynamicTableSourceFactory, DynamicTab
 
   @Override
   public DynamicTableSource createDynamicTableSource(Context context) {
+    // 获取声明表的with参数
     Configuration conf = FlinkOptions.fromMap(context.getCatalogTable().getOptions());
+    // 获取表的存储路径
     Path path = new Path(conf.getOptional(FlinkOptions.PATH).orElseThrow(() ->
         new ValidationException("Option [path] should not be empty.")));
+    // 从文件系统路径获取表的配置信息(联合主键字段/预聚合字段/Hive分区格式)，并补充到flink conf中，为读取数据做准备
     setupTableOptions(conf.getString(FlinkOptions.PATH), conf);
+    // 从表对象中获取已解析的模式信息，包括列的名称、数据类型和注释等
     ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();
+    // 根据表定义设置配置选项，例如: hudi recordkey、compaction、hive、hudi read/write和表avro schema
     setupConfOptions(conf, context.getObjectIdentifier(), context.getCatalogTable(), schema);
     return new HoodieTableSource(
         schema,
@@ -86,12 +91,16 @@ public class HoodieTableFactory implements DynamicTableSourceFactory, DynamicTab
 
   @Override
   public DynamicTableSink createDynamicTableSink(Context context) {
+    // 获取声明表的with参数
     Configuration conf = FlinkOptions.fromMap(context.getCatalogTable().getOptions());
+    // 校验表的存储路径
     checkArgument(!StringUtils.isNullOrEmpty(conf.getString(FlinkOptions.PATH)),
         "Option [path] should not be empty.");
     setupTableOptions(conf.getString(FlinkOptions.PATH), conf);
     ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();
+    // 检查hoodie.datasource.write.recordkey.field和write.precombine.field配置项是否包含在表字段中，如果不包含则抛出异常
     sanityCheck(conf, schema);
+    // 根据表定义设置配置选项，例如: hudi recordkey、compaction、hive、hudi read/write和表avro schema
     setupConfOptions(conf, context.getObjectIdentifier(), context.getCatalogTable(), schema);
     return new HoodieTableSink(conf, schema);
   }

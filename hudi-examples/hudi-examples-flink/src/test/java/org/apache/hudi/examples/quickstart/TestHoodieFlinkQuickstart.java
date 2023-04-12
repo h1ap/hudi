@@ -58,14 +58,17 @@ public class TestHoodieFlinkQuickstart extends AbstractTestBase {
 
     // insert data
     List<Row> rows = flinkQuickstart.insertData();
+    System.out.println("insertData: " + rows);
     assertRowsEquals(rows, TestQuickstartData.DATA_SET_SOURCE_INSERT_LATEST_COMMIT);
 
     // query data
     List<Row> rows1 = flinkQuickstart.queryData();
+    System.out.println("queryData: " + rows1);
     assertRowsEquals(rows1, TestQuickstartData.DATA_SET_SOURCE_INSERT_LATEST_COMMIT);
 
     // update data
     List<Row> rows2 = flinkQuickstart.updateData();
+    System.out.println("updateData: " + rows2);
     assertRowsEquals(rows2, TestQuickstartData.DATA_SET_SOURCE_INSERT_LATEST_COMMIT);
   }
 }

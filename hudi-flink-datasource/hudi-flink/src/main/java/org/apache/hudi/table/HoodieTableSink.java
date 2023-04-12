@@ -66,19 +66,28 @@ public class HoodieTableSink implements DynamicTableSink, SupportsPartitioning, 
       // setup configuration
       long ckpTimeout = dataStream.getExecutionEnvironment()
           .getCheckpointConfig().getCheckpointTimeout();
+      // 设置Hudi的instant commit超时时间为Flink的checkpoint超时时间
       conf.setLong(FlinkOptions.WRITE_COMMIT_ACK_TIMEOUT, ckpTimeout);
       // set up default parallelism
+      // write_tasks(每个桶的写线程数)、
+      // bucket_assign_tasks(计算数据分桶的线程数)
+      // compaction_tasks(数据合并线程数)
+      // clustering_tasks(数据再分配线程数)
       OptionsInference.setupSinkTasks(conf, dataStream.getExecutionConfig().getParallelism());
 
+      // 获取schema对应每列数据类型
       RowType rowType = (RowType) schema.toSinkRowDataType().notNull().getLogicalType();
 
       // bulk_insert mode
+      // 获取写入操作类型，默认是upsert
       final String writeOperation = this.conf.get(FlinkOptions.OPERATION);
+      // 批量写入
       if (WriteOperationType.fromValue(writeOperation) == WriteOperationType.BULK_INSERT) {
         return Pipelines.bulkInsert(conf, rowType, dataStream);
       }
 
       // Append mode
+      // 对于非批量写入模式，采用流式写入
       if (OptionsResolver.isAppendMode(conf)) {
         DataStream<Object> pipeline = Pipelines.append(conf, rowType, dataStream, context.isBounded());
         if (OptionsResolver.needsAsyncClustering(conf)) {
@@ -90,6 +99,7 @@ public class HoodieTableSink implements DynamicTableSink, SupportsPartitioning, 
 
       DataStream<Object> pipeline;
       // bootstrap
+      // 是否启动时加载索引
       final DataStream<HoodieRecord> hoodieRecordDataStream =
           Pipelines.bootstrap(conf, rowType, dataStream, context.isBounded(), overwrite);
       // write pipeline

@@ -19,15 +19,25 @@
 package org.apache.hudi.examples.quickstart;
 
 import static org.apache.hudi.examples.quickstart.utils.QuickstartConfigurations.sql;
+
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
@@ -88,13 +98,15 @@ public final class HoodieFlinkQuickstart {
     if (this.streamTableEnv == null) {
       settings = EnvironmentSettings.newInstance().build();
       TableEnvironment streamTableEnv = TableEnvironmentImpl.create(settings);
-      streamTableEnv.getConfig().getConfiguration()
-          .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
-      Configuration execConf = streamTableEnv.getConfig().getConfiguration();
-      execConf.setString("execution.checkpointing.interval", "2s");
+      TableConfig tableConfig = streamTableEnv.getConfig();
+      Configuration execConf = tableConfig.getConfiguration();
+      execConf.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+      execConf.set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(2));
       // configure not to retry after failure
-      execConf.setString("restart-strategy", "fixed-delay");
-      execConf.setString("restart-strategy.fixed-delay.attempts", "0");
+      execConf.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+      execConf.set(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true);
+      execConf.set(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT,
+          CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
       this.streamTableEnv = streamTableEnv;
     }
   }
