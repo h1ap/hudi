@@ -97,12 +97,15 @@ public class Pipelines {
    * @return the bulk insert data stream sink
    */
   public static DataStreamSink<Object> bulkInsert(Configuration conf, RowType rowType, DataStream<RowData> dataStream) {
+    // 获取BulkInsert操作算子
     WriteOperatorFactory<RowData> operatorFactory = BulkInsertWriteOperator.getFactory(conf, rowType);
+    // 是否启用bucket索引
     if (OptionsResolver.isBucketIndexType(conf)) {
       String indexKeys = conf.getString(FlinkOptions.INDEX_KEY_FIELD);
       int numBuckets = conf.getInteger(FlinkOptions.BUCKET_INDEX_NUM_BUCKETS);
-
+      // 基于分桶的分区器
       BucketIndexPartitioner<HoodieKey> partitioner = new BucketIndexPartitioner<>(numBuckets, indexKeys);
+
       RowDataKeyGen keyGen = RowDataKeyGen.instance(conf, rowType);
       RowType rowTypeWithFileId = BucketBulkInsertWriterHelper.rowTypeWithFileId(rowType);
       InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.of(rowTypeWithFileId);
@@ -111,13 +114,16 @@ public class Pipelines {
       dataStream = dataStream.partitionCustom(partitioner, keyGen::getHoodieKey)
           .map(record -> BucketBulkInsertWriterHelper.rowWithFileId(bucketIdToFileId, keyGen, record, indexKeys, numBuckets), typeInfo)
           .setParallelism(conf.getInteger(FlinkOptions.WRITE_TASKS)); // same parallelism as write task to avoid shuffle
+      // 是否排序
       if (conf.getBoolean(FlinkOptions.WRITE_BULK_INSERT_SORT_INPUT)) {
+        // 根据文件ID对数据排序
         SortOperatorGen sortOperatorGen = BucketBulkInsertWriterHelper.getFileIdSorterGen(rowTypeWithFileId);
         dataStream = dataStream.transform("file_sorter", typeInfo, sortOperatorGen.createSortOperator())
             .setParallelism(conf.getInteger(FlinkOptions.WRITE_TASKS)); // same parallelism as write task to avoid shuffle
         ExecNodeUtil.setManagedMemoryWeight(dataStream.getTransformation(),
             conf.getInteger(FlinkOptions.WRITE_SORT_MEMORY) * 1024L * 1024L);
       }
+      // 利用BulkInsert操作算子工厂写入数据
       return dataStream
           .transform(opName("bucket_bulk_insert", conf), TypeInformation.of(Object.class), operatorFactory)
           .uid(opUID("bucket_bulk_insert", conf))
@@ -139,6 +145,7 @@ public class Pipelines {
         dataStream = dataStream.partitionCustom(partitioner, rowDataKeyGen::getPartitionPath);
       }
       if (conf.getBoolean(FlinkOptions.WRITE_BULK_INSERT_SORT_INPUT)) {
+        // 根据分区字段排序
         SortOperatorGen sortOperatorGen = new SortOperatorGen(rowType, partitionFields);
         // sort by partition keys
         dataStream = dataStream
@@ -150,6 +157,7 @@ public class Pipelines {
             conf.getInteger(FlinkOptions.WRITE_SORT_MEMORY) * 1024L * 1024L);
       }
     }
+    // 利用BulkInsert操作算子工厂写入数据
     return dataStream
         .transform(opName("hoodie_bulk_insert_write", conf),
             TypeInformation.of(Object.class),

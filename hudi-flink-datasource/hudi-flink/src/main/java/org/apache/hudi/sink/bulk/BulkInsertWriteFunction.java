@@ -112,10 +112,15 @@ public class BulkInsertWriteFunction<I>
   @Override
   public void open(Configuration parameters) throws IOException {
     this.taskID = getRuntimeContext().getIndexOfThisSubtask();
+    // 创建HoodieFlinkWriteClient
     this.writeClient = FlinkWriteClients.createWriteClient(this.config, getRuntimeContext());
+    // 用于记录检查点消息的检查点元数据
     this.ckpMetadata = CkpMetadata.getInstance(config);
+    // 最后一个挂起的即时时间
     this.initInstant = lastPendingInstant();
+    // 发送bootstrap事件给协调器
     sendBootstrapEvent();
+    // 初始化writerHelper
     initWriterHelper();
   }
 
@@ -135,6 +140,7 @@ public class BulkInsertWriteFunction<I>
    * End input action for batch source.
    */
   public void endInput() {
+    // 获取数据写入状态
     final List<WriteStatus> writeStatus = this.writerHelper.getWriteStatuses(this.taskID);
 
     final WriteMetadataEvent event = WriteMetadataEvent.builder()
@@ -144,6 +150,7 @@ public class BulkInsertWriteFunction<I>
         .lastBatch(true)
         .endInput(true)
         .build();
+    // 发送停止写入的元数据事件给协调器
     this.eventGateway.sendEventToCoordinator(event);
   }
 

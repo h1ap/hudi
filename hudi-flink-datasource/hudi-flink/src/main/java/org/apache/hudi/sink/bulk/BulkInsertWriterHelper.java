@@ -99,17 +99,21 @@ public class BulkInsertWriterHelper {
 
   public void write(RowData record) throws IOException {
     try {
+      // 获取主键
       String recordKey = preserveHoodieMetadata
           ? record.getString(HoodieRecord.RECORD_KEY_META_FIELD_ORD).toString()
           : keyGen.getRecordKey(record);
+      // 获取分区路径
       String partitionPath = preserveHoodieMetadata
           ? record.getString(HoodieRecord.PARTITION_PATH_META_FIELD_ORD).toString()
           : keyGen.getPartitionPath(record);
-
+      // 如果当前分区路径为空、与之前路径不一致、handle不可写，则重新创建handle
       if ((lastKnownPartitionPath == null) || !lastKnownPartitionPath.equals(partitionPath) || !handle.canWrite()) {
+        // 创建新的文件写入句柄
         handle = getRowCreateHandle(partitionPath);
         lastKnownPartitionPath = partitionPath;
       }
+      // 写入数据
       handle.write(recordKey, partitionPath, record);
     } catch (Throwable t) {
       IOException ioException = new IOException("Exception happened when bulk insert.", t);
@@ -131,12 +135,12 @@ public class BulkInsertWriterHelper {
       }
 
       LOG.info("Creating new file for partition path " + partitionPath);
+      // 创建新的bulkInsert handle
       HoodieRowDataCreateHandle rowCreateHandle = new HoodieRowDataCreateHandle(hoodieTable, writeConfig, partitionPath, getNextFileId(),
           instantTime, taskPartitionId, taskId, taskEpochId, rowType, preserveHoodieMetadata);
       handles.put(partitionPath, rowCreateHandle);
     } else if (!handles.get(partitionPath).canWrite()) {
-      // even if there is a handle to the partition path, it could have reached its max size threshold. So, we close the handle here and
-      // create a new one.
+      // 写入的文件大小达到指定阈值，需要创建新的bulkInsert handle
       LOG.info("Rolling max-size file for partition path " + partitionPath);
       writeStatusList.add(handles.remove(partitionPath).close());
       HoodieRowDataCreateHandle rowCreateHandle = new HoodieRowDataCreateHandle(hoodieTable, writeConfig, partitionPath, getNextFileId(),

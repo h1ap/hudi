@@ -81,25 +81,27 @@ public class HoodieTableSink implements DynamicTableSink, SupportsPartitioning, 
       // bulk_insert mode
       // 获取写入操作类型，默认是upsert
       final String writeOperation = this.conf.get(FlinkOptions.OPERATION);
-      // 批量写入
+      // 离线批量写入，使用Batch Execuiton Mode并且直接写Parquet
       if (WriteOperationType.fromValue(writeOperation) == WriteOperationType.BULK_INSERT) {
         return Pipelines.bulkInsert(conf, rowType, dataStream);
       }
 
       // Append mode
-      // 对于非批量写入模式，采用流式写入
+      // COW表，追加写入
       if (OptionsResolver.isAppendMode(conf)) {
         DataStream<Object> pipeline = Pipelines.append(conf, rowType, dataStream, context.isBounded());
+        // 异步文件在分部
         if (OptionsResolver.needsAsyncClustering(conf)) {
           return Pipelines.cluster(conf, rowType, pipeline);
         } else {
+          // do nothing
           return Pipelines.dummySink(pipeline);
         }
       }
 
       DataStream<Object> pipeline;
       // bootstrap
-      // 是否启动时加载索引
+      // 是否启动时加载索引，如果已经有全量的离线 Hoodie 表，需要接上实时写入，并且保证数据不重复，可以开启 index bootstrap 功能
       final DataStream<HoodieRecord> hoodieRecordDataStream =
           Pipelines.bootstrap(conf, rowType, dataStream, context.isBounded(), overwrite);
       // write pipeline
@@ -110,8 +112,10 @@ public class HoodieTableSink implements DynamicTableSink, SupportsPartitioning, 
         if (context.isBounded()) {
           conf.setBoolean(FlinkOptions.COMPACTION_ASYNC_ENABLED, false);
         }
+        // 执行数据合并
         return Pipelines.compact(conf, pipeline);
       } else {
+        // 执行数据清理
         return Pipelines.clean(conf, pipeline);
       }
     };

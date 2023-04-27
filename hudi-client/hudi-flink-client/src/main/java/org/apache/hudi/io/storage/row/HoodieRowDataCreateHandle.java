@@ -125,9 +125,11 @@ public class HoodieRowDataCreateHandle implements Serializable {
       String commitInstant = preserveHoodieMetadata
           ? record.getString(HoodieRecord.COMMIT_TIME_METADATA_FIELD_ORD).toString()
           : instantTime;
+      // 构建数据行
       RowData rowData = HoodieRowDataCreation.create(commitInstant, seqId, recordKey, partitionPath, path.getName(),
           record, writeConfig.allowOperationMetadataField(), preserveHoodieMetadata);
       try {
+        // 利用HoodieRowDataParquetWriter写入数据
         fileWriter.writeRow(recordKey, rowData);
         writeStatus.markSuccess(recordKey);
       } catch (Throwable t) {

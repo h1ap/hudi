@@ -131,6 +131,7 @@ public class RowDataKeyGen implements Serializable {
 
   public static RowDataKeyGen instance(Configuration conf, RowType rowType) {
     Option<TimestampBasedAvroKeyGenerator> keyGeneratorOpt = Option.empty();
+    // 根据TimestampBasedAvroKeyGenerator生成key
     if (TimestampBasedAvroKeyGenerator.class.getName().equals(conf.getString(FlinkOptions.KEYGEN_CLASS_NAME))) {
       try {
         keyGeneratorOpt = Option.of(new TimestampBasedAvroKeyGenerator(StreamerUtil.flinkConf2TypedProperties(conf)));
