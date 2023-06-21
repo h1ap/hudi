@@ -200,6 +200,7 @@ public class Pipelines {
       // is only visible when creating the sink pipeline.
       conf.setBoolean(FlinkOptions.WRITE_BULK_INSERT_SORT_INPUT, false);
     }
+    // 获取BulkInsert操作算子
     WriteOperatorFactory<RowData> operatorFactory = AppendWriteOperator.getFactory(conf, rowType);
 
     return dataStream
@@ -239,10 +240,13 @@ public class Pipelines {
       boolean overwrite) {
     final boolean globalIndex = conf.getBoolean(FlinkOptions.INDEX_GLOBAL_ENABLED);
     if (overwrite || OptionsResolver.isBucketIndexType(conf)) {
+      // 需要overwrite或者是开启bucket类型的索引，那么只需要将数据转化为hoodie record即可
       return rowDataToHoodieRecord(conf, rowType, dataStream);
     } else if (bounded && !globalIndex && OptionsResolver.isPartitionedTable(conf)) {
+      // 对于有分区的表，且是有界流，且没有开启全局索引，那么直接使用boundedBootstrap
       return boundedBootstrap(conf, rowType, dataStream);
     } else {
+      // 否则使用streamBootstrap
       return streamBootstrap(conf, rowType, dataStream, bounded);
     }
   }
